@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Tools Browser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4fc3f7;
+            --dark-bg: #1e1e2e;
+            --darker-bg: #0f0f1e;
+            --text: #cdd6f4;
+            --text-muted: #aaaaaa;
+            --border: #252545;
+        }
+
+        body {
+            background: var(--darker-bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .toolbar {
+            background: var(--dark-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar button {
+            background: var(--border);
+            border: none;
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: var(--primary);
+            color: var(--darker-bg);
+        }
+
+        .toolbar button.active {
+            background: var(--primary);
+            color: var(--darker-bg);
+        }
+
+        .url-bar {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .url-bar:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .browser-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+        }
+
+        .browser-panel iframe {
+            border: none;
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
+
+        .devtools-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--dark-bg);
+            border-left: 1px solid var(--border);
+            display: none;
+        }
+
+        .devtools-panel.visible {
+            display: flex;
+        }
+
+        .devtools-header {
+            background: var(--border);
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .devtools-header button {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .devtools-header button:hover {
+            background: var(--primary);
+            color: var(--darker-bg);
+        }
+
+        .devtools-header button.active {
+            background: var(--primary);
+            color: var(--darker-bg);
+            font-weight: bold;
+        }
+
+        .devtools-content {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-output {
+            flex: 1;
+            overflow: auto;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .console-line {
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .console-line.error {
+            color: #ff6b6b;
+        }
+
+        .console-line.warn {
+            color: #ffd93d;
+        }
+
+        .console-line.log {
+            color: #b4f1d2;
+        }
+
+        .console-line.info {
+            color: var(--primary);
+        }
+
+        .inspector {
+            padding: 12px;
+            display: none;
+        }
+
+        .inspector.visible {
+            display: block;
+        }
+
+        .divider {
+            width: 6px;
+            background: var(--border);
+            cursor: col-resize;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .divider:hover {
+            background: var(--primary);
+        }
+
+        .tab-strip {
+            background: var(--border);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 2px;
+            padding: 4px 8px;
+            overflow-x: auto;
+            display: none;
+        }
+
+        .tab-strip.visible {
+            display: flex;
+        }
+
+        .tab {
+            background: var(--dark-bg);
+            color: var(--text);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px 3px 0 0;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--primary);
+            color: var(--darker-bg);
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: var(--darker-bg);
+            font-weight: bold;
+        }
+
+        .tab-close {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .tab-add {
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 0 8px;
+        }
+
+        .find-bar {
+            background: var(--border);
+            border-top: 1px solid var(--border);
+            padding: 8px 12px;
+            display: none;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .find-bar.visible {
+            display: flex;
+        }
+
+        .find-bar input {
+            padding: 4px 8px;
+            background: var(--dark-bg);
+            border: 1px solid var(--primary);
+            color: var(--text);
+            border-radius: 3px;
+            font-size: 12px;
+            flex: 1;
+            max-width: 200px;
+        }
+
+        .find-count {
+            color: var(--text-muted);
+            font-size: 12px;
+            min-width: 40px;
+        }
+
+        .info-panel {
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .info-panel.visible {
+            display: block;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .info-item {
+            background: var(--border);
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .info-label {
+            color: var(--primary);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            color: var(--text);
+            margin-top: 4px;
+            word-break: break-all;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <button id="btnBack" title="Back">← Back</button>
+            <button id="btnForward" title="Forward">Forward →</button>
+            <button id="btnRefresh" title="Refresh">🔄 Refresh</button>
+            <input type="text" class="url-bar" id="urlBar" placeholder="Enter URL (http://localhost:3000, https://example.com)" />
+            <button id="btnTabs" title="Toggle Tabs">📑 Tabs</button>
+            <button id="btnDevTools" title="Toggle DevTools">🛠 DevTools</button>
+            <button id="btnFind" title="Find">🔍 Find</button>
+        </div>
+
+        <div class="tab-strip" id="tabStrip">
+            <div id="tabContainer"></div>
+            <span class="tab-add" id="tabAdd">+</span>
+        </div>
+
+        <div class="content" id="content">
+            <div class="browser-panel" id="browserPanel">
+                <iframe id="browser" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+            </div>
+            <div class="divider" id="divider"></div>
+            <div class="devtools-panel" id="devtoolsPanel">
+                <div class="devtools-header">
+                    <button class="tab-btn active" data-tab="console">Console</button>
+                    <button class="tab-btn" data-tab="inspector">Inspector</button>
+                    <button class="tab-btn" data-tab="network">Network</button>
+                    <button class="tab-btn" data-tab="info">Info</button>
+                </div>
+                <div class="devtools-content">
+                    <div class="console-output" id="consoleOutput"></div>
+                    <div class="inspector" id="inspector"></div>
+                    <div class="info-panel" id="infoPanel"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="find-bar" id="findBar">
+            <input type="text" id="findInput" placeholder="Find in page..." />
+            <span class="find-count" id="findCount">0/0</span>
+            <button id="findPrev" title="Previous">▲</button>
+            <button id="findNext" title="Next">▼</button>
+            <button id="findClose" title="Close">✕</button>
+        </div>
+    </div>
+
+    <script>
+        class DevBrowserWeb {
+            constructor() {
+                this.tabs = [];
+                this.activeTabIndex = 0;
+                this.isDevToolsVisible = false;
+                this.consoleMessages = [];
+                this.dividerPos = 50;
+                this.isDraggingDivider = false;
+                this.init();
+            }
+
+            init() {
+                this.setupElements();
+                this.setupEventListeners();
+                this.interceptConsole();
+                this.createTab('https://www.google.com');
+            }
+
+            setupElements() {
+                this.urlBar = document.getElementById('urlBar');
+                this.browser = document.getElementById('browser');
+                this.content = document.getElementById('content');
+                this.divider = document.getElementById('divider');
+                this.devtoolsPanel = document.getElementById('devtoolsPanel');
+                this.consoleOutput = document.getElementById('consoleOutput');
+                this.tabContainer = document.getElementById('tabContainer');
+                this.tabStrip = document.getElementById('tabStrip');
+                this.findBar = document.getElementById('findBar');
+                this.findInput = document.getElementById('findInput');
+                this.findCount = document.getElementById('findCount');
+            }
+
+            setupEventListeners() {
+                document.getElementById('btnBack').addEventListener('click', () => this.goBack());
+                document.getElementById('btnForward').addEventListener('click', () => this.goForward());
+                document.getElementById('btnRefresh').addEventListener('click', () => this.refresh());
+                document.getElementById('btnDevTools').addEventListener('click', () => this.toggleDevTools());
+                document.getElementById('btnTabs').addEventListener('click', () => this.toggleTabStrip());
+                document.getElementById('btnFind').addEventListener('click', () => this.toggleFindBar());
+
+                this.urlBar.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.navigateToUrl(this.urlBar.value);
+                    }
+                });
+
+                document.getElementById('tabAdd').addEventListener('click', () => this.createTab('about:blank'));
+
+                this.divider.addEventListener('mousedown', () => this.isDraggingDivider = true);
+                document.addEventListener('mouseup', () => this.isDraggingDivider = false);
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isDraggingDivider) {
+                        const rect = this.content.getBoundingClientRect();
+                        const newPos = ((e.clientX - rect.left) / rect.width) * 100;
+                        this.dividerPos = Math.max(20, Math.min(80, newPos));
+                        this.updateLayout();
+                    }
+                });
+
+                this.findInput.addEventListener('input', (e) => this.findInPage(e.target.value));
+                document.getElementById('findNext').addEventListener('click', () => this.findNext());
+                document.getElementById('findPrev').addEventListener('click', () => this.findPrev());
+                document.getElementById('findClose').addEventListener('click', () => this.toggleFindBar());
+
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.switchDevToolsTab(e.target.dataset.tab));
+                });
+            }
+
+            interceptConsole() {
+                const self = this;
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                const originalInfo = console.info;
+
+                console.log = function(...args) {
+                    self.logToDevTools(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'log');
+                    originalLog.apply(console, args);
+                };
+
+                console.error = function(...args) {
+                    self.logToDevTools(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'error');
+                    originalError.apply(console, args);
+                };
+
+                console.warn = function(...args) {
+                    self.logToDevTools(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'warn');
+                    originalWarn.apply(console, args);
+                };
+
+                console.info = function(...args) {
+                    self.logToDevTools(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '), 'info');
+                    originalInfo.apply(console, args);
+                };
+            }
+
+            logToDevTools(message, type = 'log') {
+                this.consoleMessages.push({ message, type, time: new Date().toLocaleTimeString() });
+                this.updateConsoleOutput();
+            }
+
+            updateConsoleOutput() {
+                this.consoleOutput.innerHTML = this.consoleMessages
+                    .map(m => `<div class="console-line ${m.type}"><span style="color: var(--text-muted);">[${m.time}]</span> ${m.message}</div>`)
+                    .join('');
+                this.consoleOutput.scrollTop = this.consoleOutput.scrollHeight;
+            }
+
+            createTab(url) {
+                const tab = {
+                    url: url || 'about:blank',
+                    title: 'New Tab'
+                };
+                this.tabs.push(tab);
+                this.switchToTab(this.tabs.length - 1);
+            }
+
+            switchToTab(index) {
+                if (index < 0 || index >= this.tabs.length) return;
+                this.activeTabIndex = index;
+                const tab = this.tabs[index];
+                this.urlBar.value = tab.url;
+                this.loadInBrowser(tab.url);
+                this.logToDevTools(`Switched to tab: ${tab.title}`, 'info');
+                this.updateTabStrip();
+            }
+
+            updateTabStrip() {
+                this.tabContainer.innerHTML = this.tabs
+                    .map((tab, idx) => `
+                        <div class="tab ${idx === this.activeTabIndex ? 'active' : ''}" onclick="app.switchToTab(${idx})">
+                            <span>${tab.title.substring(0, 20)}</span>
+                            <span class="tab-close" onclick="event.stopPropagation(); app.closeTab(${idx})">✕</span>
+                        </div>
+                    `)
+                    .join('');
+            }
+
+            closeTab(index) {
+                if (this.tabs.length === 1) return;
+                this.tabs.splice(index, 1);
+                if (this.activeTabIndex >= this.tabs.length) {
+                    this.activeTabIndex = this.tabs.length - 1;
+                }
+                this.switchToTab(this.activeTabIndex);
+            }
+
+            navigateToUrl(input) {
+                let url = input.trim();
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    if (url.includes('.') || url.includes('localhost') || url.includes('127.0.0.1')) {
+                        url = 'https://' + url;
+                    } else {
+                        url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+                    }
+                }
+                const tab = this.tabs[this.activeTabIndex];
+                tab.url = url;
+                this.urlBar.value = url;
+                this.loadInBrowser(url);
+                this.logToDevTools(`Loading: ${url}`, 'info');
+            }
+
+            loadInBrowser(url) {
+                try {
+                    this.browser.src = url;
+                    this.tabs[this.activeTabIndex].title = url.includes('://') ? new URL(url).hostname : 'Page';
+                    this.updateTabStrip();
+                } catch (e) {
+                    this.logToDevTools(`Error: ${e.message}`, 'error');
+                }
+            }
+
+            goBack() {
+                this.logToDevTools('Navigation: Back', 'info');
+            }
+
+            goForward() {
+                this.logToDevTools('Navigation: Forward', 'info');
+            }
+
+            refresh() {
+                const tab = this.tabs[this.activeTabIndex];
+                this.logToDevTools(`Refreshing: ${tab.url}`, 'info');
+                this.loadInBrowser(tab.url);
+            }
+
+            toggleDevTools() {
+                this.isDevToolsVisible = !this.isDevToolsVisible;
+                this.devtoolsPanel.classList.toggle('visible');
+                this.divider.style.display = this.isDevToolsVisible ? 'block' : 'none';
+                this.updateLayout();
+                this.logToDevTools(`DevTools ${this.isDevToolsVisible ? 'opened' : 'closed'}`, 'info');
+            }
+
+            toggleTabStrip() {
+                this.tabStrip.classList.toggle('visible');
+            }
+
+            toggleFindBar() {
+                this.findBar.classList.toggle('visible');
+                if (this.findBar.classList.contains('visible')) {
+                    this.findInput.focus();
+                }
+            }
+
+            findInPage(query) {
+                if (!query) {
+                    this.findCount.textContent = '0/0';
+                    return;
+                }
+                this.logToDevTools(`Search: ${query}`, 'log');
+            }
+
+            findNext() {
+                this.logToDevTools('Finding next', 'log');
+            }
+
+            findPrev() {
+                this.logToDevTools('Finding previous', 'log');
+            }
+
+            switchDevToolsTab(tabName) {
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+
+                document.getElementById('consoleOutput').style.display = tabName === 'console' ? 'block' : 'none';
+                document.getElementById('inspector').style.display = tabName === 'inspector' ? 'block' : 'none';
+                document.getElementById('infoPanel').classList.toggle('visible', tabName === 'info');
+
+                if (tabName === 'info') {
+                    this.updateInfoPanel();
+                }
+            }
+
+            updateInfoPanel() {
+                const tab = this.tabs[this.activeTabIndex];
+                const infoPanel = document.getElementById('infoPanel');
+                infoPanel.innerHTML = `
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">URL</div>
+                            <div class="info-value">${tab.url}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Title</div>
+                            <div class="info-value">${tab.title}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Console Messages</div>
+                            <div class="info-value">${this.consoleMessages.length}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Active Tab</div>
+                            <div class="info-value">${this.activeTabIndex + 1}/${this.tabs.length}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateLayout() {
+                if (this.isDevToolsVisible) {
+                    const browserPanel = document.getElementById('browserPanel');
+                    const devtoolsPanel = document.getElementById('devtoolsPanel');
+                    browserPanel.style.flex = `0 0 ${this.dividerPos}%`;
+                    devtoolsPanel.style.flex = `0 0 ${100 - this.dividerPos}%`;
+                }
+            }
+        }
+
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new DevBrowserWeb();
+            console.log('Developer Tools Browser Web Edition - Ready');
+        });
+    </script>
+</body>
+</html>
